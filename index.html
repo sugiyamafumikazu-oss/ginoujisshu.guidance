@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外国人技能実習制度・特定技能 総合分析ダッシュボード</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #fafaf9; /* Stone-50: Warm neutral background */
+            color: #44403c; /* Stone-700: Soft dark text */
+        }
+
+        /* Chart Container Strict Styling */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 350px; /* Mobile default */
+            max-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-wrapper {
+                height: 400px;
+            }
+        }
+
+        /* Custom scrollbar for data tables */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d6d3d1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e;
+        }
+
+        /* Interaction States */
+        .nav-item.active {
+            border-bottom: 2px solid #ea580c; /* Orange-600 */
+            color: #ea580c;
+            font-weight: 700;
+        }
+
+        .step-card {
+            transition: all 0.3s ease;
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .step-card.active-step {
+            border-color: #ea580c;
+            background-color: #fff7ed; /* Orange-50 */
+        }
+    </style>
+
+    <!-- Chosen Palette: Warm Neutrals (Stone) with Terracotta (SSW) and Slate Blue (TITP) accents -->
+    <!-- Application Structure Plan: 
+         1. Header: Quick context.
+         2. Comparative Module: Interactive cards/table to toggle between TITP and SSW logic.
+         3. Transition Flow: A step-by-step visual interactive guide showing how an intern moves to SSW.
+         4. Market Trends: Dashboard with Chart.js showing growth, sector breakdown, and nationality data.
+         Reasoning: Users first need to define the concepts, then understand the connection (transition), then see the scale (market).
+    -->
+    <!-- Visualization & Content Choices:
+         - Comparison: Interactive toggle cards (Text/Grid) -> Clear distinction of complex rules.
+         - Transition: Vertical/Horizontal Step Interaction -> Explains the "exam exemption" path clearly without SVG diagrams.
+         - Market Trends: Line Chart (Growth over time), Bar Chart (Industry comparison).
+         - Justification: Chart.js handles responsiveness well; Vanilla JS manages the state of the "Step" explanation.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+</head>
+<body class="bg-stone-50 min-h-screen flex flex-col">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold text-stone-800">🇯🇵 外国人材制度ナビ</span>
+                </div>
+                <div class="hidden sm:flex space-x-8 items-center">
+                    <button onclick="scrollToSection('comparison')" class="nav-item text-stone-500 hover:text-stone-900 px-3 py-2 text-sm font-medium transition-colors">制度比較</button>
+                    <button onclick="scrollToSection('transition')" class="nav-item text-stone-500 hover:text-stone-900 px-3 py-2 text-sm font-medium transition-colors">移行メカニズム</button>
+                    <button onclick="scrollToSection('market')" class="nav-item text-stone-500 hover:text-stone-900 px-3 py-2 text-sm font-medium transition-colors">市場動向データ</button>
+                </div>
+                <!-- Mobile menu button placeholder (simplified) -->
+                <div class="flex items-center sm:hidden">
+                    <span class="text-xs text-stone-400">Scroll to explore</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero / Intro -->
+    <div class="bg-stone-100 border-b border-stone-200">
+        <div class="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-3xl font-extrabold text-stone-900 sm:text-4xl">
+                技能実習から特定技能へ
+            </h1>
+            <p class="mt-4 text-lg text-stone-600 max-w-2xl mx-auto">
+                日本の外国人労働市場は大きな転換期を迎えています。「国際貢献」を目的とした技能実習制度と、「労働力確保」を目的とした特定技能制度。
+                その違い、移行の仕組み、そして急拡大する市場データをインタラクティブに解説します。
+            </p>
+        </div>
+    </div>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16 w-full">
+
+        <!-- SECTION 1: SYSTEM COMPARISON -->
+        <section id="comparison" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-stone-800 border-l-4 border-slate-600 pl-4">1. 制度の違いと概要</h2>
+                <p class="mt-2 text-stone-600">
+                    現在並存している2つの主要な在留資格制度の違いを理解しましょう。下のトグルボタンを切り替えるか、カードをクリックして詳細を確認してください。
+                    技能実習は「育成」、特定技能は「即戦力」という建付けの違いが、滞在期間や家族帯同の可否に影響しています。
+                </p>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex justify-center mb-8">
+                <div class="bg-white p-1 rounded-lg shadow-sm border border-stone-200 inline-flex">
+                    <button onclick="setSystemView('titp')" id="btn-titp" class="px-6 py-2 rounded-md text-sm font-medium transition-all bg-slate-100 text-slate-800">
+                        技能実習 (TITP)
+                    </button>
+                    <button onclick="setSystemView('ssw')" id="btn-ssw" class="px-6 py-2 rounded-md text-sm font-medium transition-all text-stone-500 hover:bg-stone-50">
+                        特定技能 (SSW)
+                    </button>
+                    <button onclick="setSystemView('compare')" id="btn-compare" class="px-6 py-2 rounded-md text-sm font-medium transition-all text-stone-500 hover:bg-stone-50">
+                        比較一覧
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="system-content" class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 min-h-[300px]">
+                <!-- Dynamic Content injected via JS -->
+            </div>
+        </section>
+
+        <!-- SECTION 2: TRANSITION MECHANISM -->
+        <section id="transition" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-stone-800 border-l-4 border-orange-500 pl-4">2. 移行の仕組み (ルート解説)</h2>
+                <p class="mt-2 text-stone-600">
+                    多くの外国人人材は、技能実習生として入国し、その後特定技能へ在留資格を変更します。
+                    この「移行ルート」が現在の労働市場の供給源となっています。ステップをクリックして、どのような条件で移行が可能かを確認してください。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Interactive Flowchart (Left) -->
+                <div class="lg:col-span-4 space-y-4">
+                    <!-- Step 1 -->
+                    <div onclick="showStep(1)" id="step-1" class="step-card active-step cursor-pointer p-4 rounded-lg border-2 border-stone-200 bg-white relative">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-slate-700">STEP 1: 技能実習2号</span>
+                            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">入国〜3年</span>
+                        </div>
+                        <p class="text-sm text-stone-500 mt-1">実務経験と日本語の基礎習得</p>
+                    </div>
+                    
+                    <!-- Arrow -->
+                    <div class="flex justify-center text-stone-300 text-2xl">⬇</div>
+
+                    <!-- Step 2 -->
+                    <div onclick="showStep(2)" id="step-2" class="step-card cursor-pointer p-4 rounded-lg border-2 border-stone-200 bg-white relative">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-orange-700">STEP 2: 移行の要件確認</span>
+                            <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">重要分岐点</span>
+                        </div>
+                        <p class="text-sm text-stone-500 mt-1">試験免除の特例適用など</p>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center text-stone-300 text-2xl">⬇</div>
+
+                    <!-- Step 3 -->
+                    <div onclick="showStep(3)" id="step-3" class="step-card cursor-pointer p-4 rounded-lg border-2 border-stone-200 bg-white relative">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-orange-700">STEP 3: 特定技能1号へ</span>
+                            <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">就労開始</span>
+                        </div>
+                        <p class="text-sm text-stone-500 mt-1">即戦力としてさらに最長5年</p>
+                    </div>
+                </div>
+
+                <!-- Detail Panel (Right) -->
+                <div class="lg:col-span-8">
+                    <div id="step-detail-panel" class="bg-stone-50 border border-stone-200 rounded-xl p-6 h-full flex flex-col justify-center transition-opacity duration-300">
+                        <!-- Details injected via JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: MARKET TRENDS -->
+        <section id="market" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-stone-800 border-l-4 border-indigo-500 pl-4">3. マーケット動向データ</h2>
+                <p class="mt-2 text-stone-600">
+                    特定技能制度の開始（2019年）以降の推移と、産業別の受け入れ状況を可視化します。
+                    技能実習生からの移行が進んでいる分野（食品製造など）と、独自試験での採用が多い分野などの傾向が読み取れます。
+                </p>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex flex-wrap gap-4 mb-6">
+                <select id="chart-selector" onchange="updateCharts()" class="block w-full sm:w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white border">
+                    <option value="growth">推移: 特定技能人数の急増</option>
+                    <option value="sector">分野別: どの産業が多いか</option>
+                    <option value="ratio">構成比: 実習 vs 特定技能</option>
+                </select>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Main Chart -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200 col-span-1 md:col-span-2 lg:col-span-1">
+                    <h3 id="main-chart-title" class="text-lg font-bold text-stone-700 mb-4">特定技能在留外国人数 推移</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                    <p id="main-chart-desc" class="mt-4 text-sm text-stone-500 bg-stone-50 p-2 rounded">
+                        2019年の制度開始から、コロナ禍を経て2022年以降急激に増加しています。特に技能実習修了者の移行がこの伸びを支えています。
+                    </p>
+                </div>
+
+                <!-- Secondary Chart -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200 col-span-1 md:col-span-2 lg:col-span-1">
+                    <h3 id="sub-chart-title" class="text-lg font-bold text-stone-700 mb-4">産業分野別 構成比</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="subChart"></canvas>
+                    </div>
+                     <p id="sub-chart-desc" class="mt-4 text-sm text-stone-500 bg-stone-50 p-2 rounded">
+                        飲食料品製造業が最も多く、次いで製造業、介護、建設と続きます。これらは技能実習生として多くの人材を受け入れてきた歴史がある分野です。
+                    </p>
+                </div>
+
+                <!-- Key Stat Cards -->
+                <div class="col-span-1 md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500 font-bold uppercase">技能実習生総数</div>
+                        <div class="text-2xl font-bold text-slate-700">約 40万人</div>
+                        <div class="text-xs text-green-600 mt-1">安定推移</div>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-lg border border-orange-100">
+                        <div class="text-xs text-orange-500 font-bold uppercase">特定技能総数</div>
+                        <div class="text-2xl font-bold text-orange-700">約 20万人超</div>
+                        <div class="text-xs text-red-500 mt-1">↑ 急増中</div>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-lg border border-stone-200">
+                        <div class="text-xs text-stone-500 font-bold uppercase">試験免除移行率</div>
+                        <div class="text-2xl font-bold text-stone-700">高い</div>
+                        <div class="text-xs text-stone-400 mt-1">同職種移行の場合</div>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-lg border border-stone-200">
+                        <div class="text-xs text-stone-500 font-bold uppercase">対象分野数</div>
+                        <div class="text-2xl font-bold text-stone-700">12分野</div>
+                        <div class="text-xs text-stone-400 mt-1">統合・再編予定あり</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-stone-800 text-stone-400 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-sm">データ出典参考: 出入国在留管理庁、厚生労働省統計 (シミュレーション値を含む)</p>
+            <p class="text-xs mt-2">※本アプリケーションは制度の概要理解を目的としています。最新の法改正や正確な数値は公式サイトをご確認ください。</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- DATA STORE ---
+
+        const systemData = {
+            titp: {
+                title: "技能実習制度 (TITP)",
+                color: "bg-slate-100 border-slate-300",
+                textColor: "text-slate-800",
+                features: [
+                    { label: "目的", value: "国際貢献・技術移転 (建前)" },
+                    { label: "在留期間", value: "最長5年 (1号→2号→3号)" },
+                    { label: "技能水準", value: "実習を通じて習得" },
+                    { label: "転職", value: "原則不可" },
+                    { label: "家族帯同", value: "不可" }
+                ],
+                desc: "開発途上国への技能移転を目的とした制度。実際には日本の労働力不足を補う側面が強いが、制度設計上は「労働者」ではなく「実習生」として扱われる。"
+            },
+            ssw: {
+                title: "特定技能制度 (SSW)",
+                color: "bg-orange-50 border-orange-300",
+                textColor: "text-orange-800",
+                features: [
+                    { label: "目的", value: "人手不足分野の労働力確保" },
+                    { label: "在留期間", value: "1号:通算5年 / 2号:無期限更新可" },
+                    { label: "技能水準", value: "即戦力 (試験または実習修了)" },
+                    { label: "転職", value: "同一分野内で可能" },
+                    { label: "家族帯同", value: "1号は不可 / 2号は可能" }
+                ],
+                desc: "2019年に新設された、明確に「労働力」として外国人を受け入れる制度。一定の技能と日本語能力があれば働くことができ、技能実習からの移行先としても機能している。"
+            }
+        };
+
+        const transitionSteps = {
+            1: {
+                title: "技能実習2号の修了",
+                content: `
+                    <h4 class="font-bold text-lg mb-2">実習制度での3年間</h4>
+                    <p class="mb-4">多くの実習生は「技能実習1号（1年）」を経て「技能実習2号（2年）」に進みます。合計3年間の実習を良好に修了することが、特定技能への主要なパスポートとなります。</p>
+                    <ul class="list-disc pl-5 space-y-2 bg-white p-4 rounded border border-stone-200">
+                        <li><strong>要件:</strong> 技能実習2号を良好に修了していること。</li>
+                        <li><strong>メリット:</strong> 特定技能へ移行する際の「技能試験」と「日本語試験」が免除されます（同じ職種分野の場合）。</li>
+                    </ul>
+                `
+            },
+            2: {
+                title: "試験免除と移行手続き",
+                content: `
+                    <h4 class="font-bold text-lg mb-2">スムーズな移行メカニズム</h4>
+                    <p class="mb-4">技能実習と特定技能の職種が対応している場合、試験を受ける必要がありません。</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-green-50 p-3 rounded border border-green-200">
+                            <span class="block font-bold text-green-700 mb-1">同職種への移行</span>
+                            <span class="text-sm">試験・日本語テスト共に<br><strong class="text-lg">免除</strong></span>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded border border-yellow-200">
+                            <span class="block font-bold text-yellow-700 mb-1">異職種への移行</span>
+                            <span class="text-sm">その分野の<br><strong class="text-lg">技能試験のみ合格</strong>が必要<br>(日本語は免除)</span>
+                        </div>
+                    </div>
+                `
+            },
+            3: {
+                title: "特定技能1号としての就労",
+                content: `
+                    <h4 class="font-bold text-lg mb-2">新たなキャリアのスタート</h4>
+                    <p class="mb-4">特定技能1号に移行すると、最長5年間の就労が可能になります。また、給与水準も日本人と同等以上であることが法律で義務付けられています。</p>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>支援計画:</strong> 受け入れ企業（または登録支援機関）による生活・日本語支援が必須。</li>
+                        <li><strong>将来の展望:</strong> さらに熟練すれば「特定技能2号」への道も開かれ、事実上の永住への道がつながります。</li>
+                    </ul>
+                `
+            }
+        };
+
+        // Mock Data for Charts (Simulating Trends based on typical reports)
+        const marketData = {
+            years: ['2019', '2020', '2021', '2022', '2023', '2024(予)'],
+            sswCount: [1600, 15000, 49000, 130000, 208000, 250000], // Approximate exponential growth
+            titpCount: [380000, 370000, 350000, 320000, 350000, 400000], // Dip during COVID, recovering
+            sectors: {
+                labels: ['飲食料品製造', '機械・金属製造', '介護', '建設', '農業', 'その他'],
+                data: [30, 20, 15, 12, 10, 13], // Percentage approximations
+                colors: ['#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5', '#e7e5e4']
+            }
+        };
+
+        // --- UI LOGIC ---
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // System Comparison Logic
+        function setSystemView(view) {
+            const container = document.getElementById('system-content');
+            const btns = ['btn-titp', 'btn-ssw', 'btn-compare'];
+            
+            // Reset Buttons
+            btns.forEach(b => {
+                const btn = document.getElementById(b);
+                btn.className = "px-6 py-2 rounded-md text-sm font-medium transition-all text-stone-500 hover:bg-stone-50";
+            });
+
+            // Active Button Style
+            const activeBtn = document.getElementById(`btn-${view}`);
+            if(view === 'titp') activeBtn.className = "px-6 py-2 rounded-md text-sm font-medium transition-all bg-slate-100 text-slate-800 shadow-inner";
+            if(view === 'ssw') activeBtn.className = "px-6 py-2 rounded-md text-sm font-medium transition-all bg-orange-100 text-orange-800 shadow-inner";
+            if(view === 'compare') activeBtn.className = "px-6 py-2 rounded-md text-sm font-medium transition-all bg-stone-200 text-stone-800 shadow-inner";
+
+            let html = '';
+
+            if (view === 'compare') {
+                html = `
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">比較項目</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider bg-slate-50">技能実習 (TITP)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider bg-orange-50">特定技能 (SSW)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${systemData.titp.features.map((f, i) => `
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${f.label}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-500 bg-slate-50/30">${f.value}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-500 bg-orange-50/30">${systemData.ssw.features[i].value}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                const data = systemData[view];
+                html = `
+                    <div class="border-l-4 ${view === 'titp' ? 'border-slate-500' : 'border-orange-500'} pl-4 mb-4">
+                        <h3 class="text-xl font-bold ${data.textColor}">${data.title}</h3>
+                        <p class="mt-2 text-stone-600">${data.desc}</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${data.features.map(f => `
+                            <div class="p-3 rounded border border-stone-100 bg-stone-50">
+                                <div class="text-xs text-stone-400 font-bold uppercase">${f.label}</div>
+                                <div class="text-base font-medium text-stone-700">${f.value}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Transition Step Logic
+        function showStep(stepNum) {
+            // Update Visuals
+            for (let i = 1; i <= 3; i++) {
+                const el = document.getElementById(`step-${i}`);
+                if (i === stepNum) {
+                    el.classList.add('active-step');
+                    el.classList.remove('border-stone-200');
+                    el.classList.add('border-orange-400');
+                } else {
+                    el.classList.remove('active-step');
+                    el.classList.add('border-stone-200');
+                    el.classList.remove('border-orange-400');
+                }
+            }
+
+            // Update Content
+            const panel = document.getElementById('step-detail-panel');
+            panel.style.opacity = '0';
+            
+            setTimeout(() => {
+                const data = transitionSteps[stepNum];
+                panel.innerHTML = `
+                    <h3 class="text-xl font-bold text-stone-800 mb-2 border-b pb-2">STEP ${stepNum}: ${data.title}</h3>
+                    <div class="text-stone-600 leading-relaxed">
+                        ${data.content}
+                    </div>
+                `;
+                panel.style.opacity = '1';
+            }, 300);
+        }
+
+        // --- CHARTS LOGIC ---
+        let mainChartInstance = null;
+        let subChartInstance = null;
+
+        function initCharts() {
+            // 1. Growth Line Chart
+            const ctx1 = document.getElementById('mainChart').getContext('2d');
+            mainChartInstance = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: marketData.years,
+                    datasets: [
+                        {
+                            label: '特定技能 (SSW)',
+                            data: marketData.sswCount,
+                            borderColor: '#ea580c', // Orange
+                            backgroundColor: 'rgba(234, 88, 12, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: '技能実習 (TITP)',
+                            data: marketData.titpCount,
+                            borderColor: '#475569', // Slate
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: '人数 (人)' }
+                        }
+                    }
+                }
+            });
+
+            // 2. Sector Pie Chart (Bar for better comparison)
+            const ctx2 = document.getElementById('subChart').getContext('2d');
+            subChartInstance = new Chart(ctx2, {
+                type: 'bar', // Horizontal bar is often better for labels
+                data: {
+                    labels: marketData.sectors.labels,
+                    datasets: [{
+                        label: '構成比 (%)',
+                        data: marketData.sectors.data,
+                        backgroundColor: marketData.sectors.colors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Horizontal
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            const selector = document.getElementById('chart-selector');
+            const val = selector.value;
+            const mainTitle = document.getElementById('main-chart-title');
+            const subTitle = document.getElementById('sub-chart-title');
+            const mainDesc = document.getElementById('main-chart-desc');
+
+            if (val === 'growth') {
+                mainTitle.innerText = "特定技能在留外国人数 推移";
+                mainChartInstance.data.datasets[0].hidden = false;
+                mainChartInstance.data.datasets[1].hidden = false; // Show both
+                mainChartInstance.config.type = 'line';
+                mainChartInstance.update();
+                mainDesc.innerText = "技能実習生の数は安定（横ばい）している一方、特定技能は制度周知と実習修了生の移行により指数関数的に増加しています。";
+            } else if (val === 'ratio') {
+                // Focus on SSW ratio growth
+                mainTitle.innerText = "労働市場における特定技能の割合（概念図）";
+                mainChartInstance.data.datasets[1].hidden = true; // Hide TITP for clarity
+                mainChartInstance.update();
+                 mainDesc.innerText = "今後、制度改正（育成就労への変更など）により、この「特定技能」への一本化・接続の流れはさらに加速すると予測されます。";
+            }
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set initial Comparison View
+            setSystemView('compare');
+            
+            // Set initial Step View
+            showStep(1);
+
+            // Init Charts
+            initCharts();
+        });
+
+    </script>
+</body>
+</html>
